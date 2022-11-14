@@ -421,25 +421,27 @@ for jj in range(0,videos): #Video loop for each participants
 
     i +=1
 
-model1 = 's_all_reconstructed_emg_autoencoder_1.h5'
-fm_model_emg.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+# model1 = 's_all_reconstructed_emg_autoencoder_1.h5'
+# fm_model_emg.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
 
-model2 = 's_all_reconstructed_eog_autoencoder_1.h5'
-fm_model_eog.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model2))
-model3 = 's_all_reconstructed_gsr_autoencoder_1.h5'
-fm_model_gsr.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model3))
+# model2 = 's_all_reconstructed_eog_autoencoder_1.h5'
+# fm_model_eog.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model2))
+# model3 = 's_all_reconstructed_gsr_autoencoder_1.h5'
+# fm_model_gsr.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model3))
 
 
     
 #===============================================================================
 #Save all the results into CSV file
 #===============================================================================
-folderPath = '/home/gp/Desktop/PhD-codes/Fed-ReMECS-mqtt/Federated_Results/'
-fname_fm = folderPath + client_name +'_person_FusionModel'+'_'+'_results.csv'
-column_names = ['Person', 'Video', 'Loss_','F1', 'y_act', 'y_pred']
-all_emo = pd.DataFrame(all_emo,columns = column_names)
-all_emo.to_csv(fname_fm)
+# folderPath = '/home/bits/Downloads/Fed-ReMECS-mqtt/Federated_Results/'
+# fname_fm = folderPath + client_name +'_person_FusionModel'+'_'+'_results.csv'
+# column_names = ['Person', 'Video', 'Loss_','F1', 'y_act', 'y_pred']
+# all_emo = pd.DataFrame(all_emo,columns = column_names)
+# all_emo.to_csv(fname_fm)
 
+print('loss are')
+print('EMG: '+all_emg,'EOG: ':+all_eog,'GSR: '+all_gsr)
 print('All Done! Client Closed')
 
 
@@ -637,5 +639,5 @@ for jj in range(0,videos): #Video loop for each participants
     i +=1
     
     
-model3 = 's_all_MDCARE_valence_1.h5'
-model.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model3))
+# model3 = 's_all_MDCARE_valence_1.h5'
+# model.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model3))
