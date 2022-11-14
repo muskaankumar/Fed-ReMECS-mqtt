@@ -80,16 +80,16 @@ def emg_model():
 def eog_model():
     import keras
 
-    cnn_autoencoder_emg_all.compile(optimizer=Adam(learning_rate=0.001), loss = 'mse')
-    early_stopper = EarlyStopping(patience=10, restore_best_weights=True)
+#     cnn_autoencoder_emg_all.compile(optimizer=Adam(learning_rate=0.001), loss = 'mse')
+#     early_stopper = EarlyStopping(patience=10, restore_best_weights=True)
 
-    history1 = cnn_autoencoder_emg_all.fit(x_train_emg, x_train_emg,
-                    epochs=100,
-                    batch_size=16,
-                    shuffle=True,
-                    validation_data=(x_test_emg, x_test_emg),
-                    callbacks=[early_stopper])
-    encoder_emg = Model(input0, encoded_emg)
+#     history1 = cnn_autoencoder_emg_all.fit(x_train_emg, x_train_emg,
+#                     epochs=100,
+#                     batch_size=16,
+#                     shuffle=True,
+#                     validation_data=(x_test_emg, x_test_emg),
+#                     callbacks=[early_stopper])
+#     encoder_emg = Model(input0, encoded_emg)
 
     #EOG Data
 
@@ -190,7 +190,7 @@ def gsr_model():
 #================================================================================================
 # model creation
 #================================================================================================
-def valence_classification():
+def valence_classification(global_weight_emg,global_weight_eog,global_weight_gsr):
     sequence_length = 128
     num_features0 = 2
 
