@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import os 
 #=================================================================================================
 # Physiological data read according to the client
 #=================================================================================================
@@ -20,7 +21,12 @@ def get_emg_eog_gsr_labels_data(p):
     f='data_preprocessed_python'
     physio_data_all = []
     label_data_all = []
-    file = os.path.join(r, i) //check later 
+#     file = os.path.join(r, i) //check later
+    if p<=8:
+        file = '/home/bits/Downloads/data_preprocessed_python/s0'+str(p+1)+'.dat'
+    else:
+        file = '/home/bits/Downloads/data_preprocessed_python/s'+str(p+1)+'.dat'
+    
     with open(file, 'rb') as s_data: 
         content = pickle.load(s_data, encoding='latin1')
         physio_data_all.append(content['data'])
