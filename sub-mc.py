@@ -387,11 +387,11 @@ while True:
 
 
 #Global Model Result Save
-folderPath = '/home/gp/Desktop/PhD-codes/Fed-ReMECS-mqtt/Federated_Results/'
-fname_fm = folderPath +'_Global_Model' +'_'+'_results.csv'
-column_names = ['Acc', 'F1']
-global_model_result = pd.DataFrame(global_model_result,columns = column_names)
-global_model_result.to_csv(fname_fm)
+# folderPath = '/home/gp/Desktop/PhD-codes/Fed-ReMECS-mqtt/Federated_Results/'
+# fname_fm = folderPath +'_Global_Model' +'_'+'_results.csv'
+# column_names = ['Acc', 'F1']
+# global_model_result = pd.DataFrame(global_model_result,columns = column_names)
+# global_model_result.to_csv(fname_fm)
 
 
 print("All done, Global Server Closed.")
