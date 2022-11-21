@@ -33,10 +33,10 @@ import pickle
 
 import pickle
 import os
-import cv2     # for capturing videos
+#import cv2     # for capturing videos
 import math   # for mathematical operations
 import matplotlib.pyplot as plt    # for plotting the images
-%matplotlib inline
+
 import pandas as pd
 import xlrd
 
@@ -64,15 +64,15 @@ from keras.layers import Dense, InputLayer, Dropout
 
 
 
-from keras.preprocessing.image import img_to_array, load_img
+from keras_preprocessing.image import img_to_array, load_img
 
 
 from keras.layers import Dense, Flatten, Dropout, ZeroPadding3D
 from keras.preprocessing.image import ImageDataGenerator
-from keras.layers.recurrent import LSTM
+#from keras.layers.recurrent import LSTM                                     check later 
 from keras.models import Sequential, load_model
 from tensorflow.keras.optimizers import Adam
-from keras.layers.wrappers import TimeDistributed
+#from keras.layers.wrappers import TimeDistributed                            check later 
 from keras.layers import Dense,Dropout,Conv3D,Input,MaxPool3D,Flatten,Activation,Conv2D, MaxPooling2D, BatchNormalization
 from keras import regularizers
 from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
@@ -86,12 +86,12 @@ from keras.layers import BatchNormalization
 from keras.callbacks import EarlyStopping
 from keras.applications import resnet_v2
 
-from keras.layers.merge import concatenate
+from keras.layers import concatenate
 from keras.models import Model, Sequential
 from keras.layers import Dense, Input
 from keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D, Conv1DTranspose, Flatten, Reshape, LeakyReLU
 from keras.models import Model
-
+from sklearn.model_selection import train_test_split
 # from multi_label_performance_metrics_utils import *
 
 
@@ -202,7 +202,7 @@ indx = 0
 c=0
 ccc =0
 i =0
-videos = 40 #Total Number of Videos
+videos = 1 #Total Number of Videos
 #=================================================================================================
 
 print('-----------------------------------------')
@@ -211,7 +211,7 @@ print('-----------------------------------------')
 #=======================================
 # MAIN Loop STARTS HERE
 #=======================================
-for jj in range(0,videos): #Video loop for each participants
+for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoes if you want all 40 
     v = jj+1 #Video number
     print('=========================================================================')
     p_v = 'Person:'+ ' ' +str(p)+ ' ' +'Video:'+str(v)
@@ -262,7 +262,20 @@ for jj in range(0,videos): #Video loop for each participants
                         shuffle=True,
                         validation_data=(x_test_emg, x_test_emg),
                         callbacks=[early_stopper])
-    
+                        
+    model1= 's_all_reconstructed_emg_encoded'+str(p)+'.h5'
+    #encoder_emg = Model(input0, encoded_emg)
+    OUTPUT="/home/csis/Documents/Fed-ReMECS-mqtt-main"
+
+    try:
+    	os.remove(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+    except:
+    	pass
+    fm_model_emg.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+    #model_weights_emg = fm_model_emg.get_weights()
+    #encodedModelWeights_emg = json.dumps(model_weights_emg,cls=Numpy2JSONEncoder)
+    client.publish("LocalModel_for_EMG_Signal saved", payload = 'abc')
+    #save model
     
     fm_model_eog.compile(optimizer=Adam(learning_rate=0.001), loss = 'mse')
     early_stopper = EarlyStopping(patience=10, restore_best_weights=True)
@@ -274,6 +287,21 @@ for jj in range(0,videos): #Video loop for each participants
                         validation_data=(x_test_eog, x_test_eog),
                         callbacks=[early_stopper])
     
+    model1= 's_all_reconstructed_eog_encoded'+str(p)+'.h5'
+    #encoder_emg = Model(input0, encoded_emg)
+    OUTPUT="/home/csis/Documents/Fed-ReMECS-mqtt-main"
+    
+
+    try:
+    	os.remove(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+    except:
+    	pass
+    fm_model_eog.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+    #model_weights_emg = fm_model_emg.get_weights()
+    #encodedModelWeights_emg = json.dumps(model_weights_emg,cls=Numpy2JSONEncoder)
+    client.publish("LocalModel_for_EoG_Signal saved", payload = 'abc')
+    
+    
     fm_model_gsr.compile(optimizer=Adam(learning_rate=0.001), loss = 'mse')
     early_stopper = EarlyStopping(patience=10, restore_best_weights=True)
 
@@ -283,6 +311,7 @@ for jj in range(0,videos): #Video loop for each participants
                         shuffle=True,
                         validation_data=(x_test_gsr, x_test_gsr),
                         callbacks=[early_stopper])
+                        
 #     tmp_y = fm_model.predict(x_train_emg)
 
 #         if slider_eda.reached_end_of_list():
@@ -293,11 +322,27 @@ for jj in range(0,videos): #Video loop for each participants
     # Performance matric update
     #===========================================
     
-    results_emg = fm_model.evaluate(x_test_emg, y_test_emg)
+    model1= 's_all_reconstructed_gsr_encoded'+str(p)+'.h5'
+    #encoder_emg = Model(input0, encoded_emg)
+    OUTPUT="/home/csis/Documents/Fed-ReMECS-mqtt-main"
+    
+
+    try:
+    	os.remove(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+    except:
+    	pass
+    fm_model_gsr.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+    #model_weights_emg = fm_model_emg.get_weights()
+    #encodedModelWeights_emg = json.dumps(model_weights_emg,cls=Numpy2JSONEncoder)
+    client.publish("LocalModel_for_gsr_Signal saved", payload = 'abc')
+    
+    print('All models saved')
+    
+    results_emg = fm_model_emg.evaluate(x_test_emg, y_test_emg)
     print("Test loss for EMG signals: ", results_emg)
-    results_eog = fm_model.evaluate(x_test_eog, y_test_eog)
+    results_eog = fm_model_eog.evaluate(x_test_eog, y_test_eog)
     print("Test loss for EOG signals: ", results_eog)
-    results_gsr = fm_model.evaluate(x_test_gsr, y_test_gsr)
+    results_gsr = fm_model_gsr.evaluate(x_test_gsr, y_test_gsr)
     print("Test loss for GSR signals: ", results_gsr)
     
 #     y_pred = np.array([np.argmax(tmp_y[0])])
@@ -324,7 +369,7 @@ for jj in range(0,videos): #Video loop for each participants
     #=======================================================================================
     #Send the model performance from each to server for checking Global Model's performance
     #========================================================================================
-    if i >0:
+    if i >=0:
         model_performance = {'Local_Model':p,'Loss_EMG':results_emg, 'Loss_EOG':results_eog,'Loss_GSR':results_gsr}
         encoded_model_performance = json.dumps(model_performance)
         client.publish("ModelPerformance", payload = encoded_model_performance)
@@ -337,12 +382,9 @@ for jj in range(0,videos): #Video loop for each participants
     #==========================================================
 
     #Message Generation and Encoding into JSON
-    model_weights_emg = fm_model_emg.get_weights()
-    encodedModelWeights_emg = json.dumps(model_weights_emg,cls=Numpy2JSONEncoder)
-    model_weights_eog = fm_model_eog.get_weights()
-    encodedModelWeights_eog = json.dumps(model_weights_eog,cls=Numpy2JSONEncoder)
-    model_weights_gsr = fm_model_gsr.get_weights()
-    encodedModelWeights_gsr = json.dumps(model_weights_gsr,cls=Numpy2JSONEncoder)
+    
+    
+    
 
 
 
@@ -350,16 +392,15 @@ for jj in range(0,videos): #Video loop for each participants
     # Broadcast (Publish) Local model weights to the mqttBroker
     #==========================================================
 
-    client.publish("LocalModel_for_EMG_Signal", payload = encodedModelWeights_emg)
-    client.publish("LocalModel_for_EOG_Signal", payload = encodedModelWeights_eog)
-    client.publish("LocalModel_for_GSR_Signal", payload = encodedModelWeights_gsr)
+    
     
     
 
     print("Local Model Broadcasted for "+ p_v +" to Topic:-> LocalModel")
+    print('Waiting for global models')
 
     #**********************************************************
-    time.sleep(70) #put the loca server in sleep for 60 sec
+    time.sleep(45) #put the loca server in sleep for 60 sec
     #**********************************************************
 
     #===============================================================================
@@ -380,9 +421,8 @@ for jj in range(0,videos): #Video loop for each participants
         msg = message.payload.decode('utf-8')
 
         # Deserialization the encoded received JSON data
-        global_weights = json2NumpyWeights(msg)
-
-        fm_model_emg.set_weights(global_weights) 
+        model1='s_all_reconstructed_emg_encoded_global.h5'
+        fm_model_emg.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1)) 
         #Replacing the old model with the newley received model from Global Server
 
 #         fm_model_eog.set_weights(global_weights)
@@ -397,9 +437,8 @@ for jj in range(0,videos): #Video loop for each participants
         msg = message.payload.decode('utf-8')
 
         # Deserialization the encoded received JSON data
-        global_weights = json2NumpyWeights(msg)
-
-        fm_model_eog.set_weights(global_weights)
+        model1='s_all_reconstructed_eog_encoded_global.h5'
+        fm_model_eog.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
         
     while not qLS_gsr.empty():
         message = qLS_gsr.get()
@@ -410,9 +449,8 @@ for jj in range(0,videos): #Video loop for each participants
         msg = message.payload.decode('utf-8')
 
         # Deserialization the encoded received JSON data
-        global_weights = json2NumpyWeights(msg)
-
-        fm_model_gsr.set_weights(global_weights) 
+        model1='s_all_reconstructed_gsr_encoded_global.h5'
+        fm_model_gsr.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
     
     
     
@@ -441,10 +479,12 @@ for jj in range(0,videos): #Video loop for each participants
 # all_emo.to_csv(fname_fm)
 
 print('loss are')
-print('EMG: '+all_emg,'EOG: ':+all_eog,'GSR: '+all_gsr)
+print('EMG: ',all_emg,'EOG: ',all_eog,'GSR: ',all_gsr)
 print('All Done! Client Closed')
+print('Start valence')
 
-
+i=0
+init_m=0
 
 #===============================================================================
 #For valence 
@@ -457,7 +497,7 @@ for jj in range(0,videos): #Video loop for each participants
 
     emotion_label =[]
     
-     t_EMG,t_EOG,t_GSR,y = get_data_video(jj,EMG_all,EOG_all,GSR_all,label_data_all)
+    t_EMG,t_EOG,t_GSR,y = get_data_video(jj,EMG_all,EOG_all,GSR_all,label_data_all)
 
     from sklearn.model_selection import train_test_split
 
@@ -579,7 +619,7 @@ for jj in range(0,videos): #Video loop for each participants
     #=======================================================================================
     #Send the model performance from each to server for checking Global Model's performance
     #========================================================================================
-    if i >0:
+    if i >=0:
         model_performance = {'Local_Model':p,'classification_report':c1}
         encoded_model_performance = json.dumps(model_performance)
         client.publish("ModelPerformance_valence", payload = encoded_model_performance)
@@ -592,52 +632,46 @@ for jj in range(0,videos): #Video loop for each participants
     #==========================================================
 
     #Message Generation and Encoding into JSON
-    model_weights_valence = model.get_weights()
-    encodedModelWeights_valence = json.dumps(model_weights_valence,cls=Numpy2JSONEncoder)
+    #model_weights_valence = model.get_weights()
+    #encodedModelWeights_valence = json.dumps(model_weights_valence,cls=Numpy2JSONEncoder)
 
     #==========================================================
     # Broadcast (Publish) Local model weights to the mqttBroker
     #==========================================================
+    
+    
+    
+    
+    
+    
+    model1= 's_all_reconstructed_valence_encoded'+str(p)+'.h5'
+    #encoder_emg = Model(input0, encoded_emg)
+    OUTPUT="/home/csis/Documents/Fed-ReMECS-mqtt-main"
 
-    client.publish("LocalModel_for_Valence", payload = encodedModelWeights_valence)
+    try:
+    	os.remove(os.path.join(OUTPUT, 'Models', 'valence', model1))
+    except:
+    	pass
+    model.save(os.path.join(OUTPUT, 'Models', 'valence', model1))
+    #model_weights_emg = fm_model_emg.get_weights()
+    #encodedModelWeights_emg = json.dumps(model_weights_emg,cls=Numpy2JSONEncoder)
+    
+    client.publish("LocalModel_for_Valence", payload = 'abc')
     
 
     print("Local Model Broadcasted for "+ p_v +" to Topic:-> LocalModel")
 
     #**********************************************************
-    time.sleep(70) #put the loca server in sleep for 60 sec
-    #**********************************************************
-
-    #===============================================================================
-    # Receive Global model from the Subscriber end
-    #===============================================================================
-
-    # if i>0:
-    #===============================================================================
-    # Publisher as subscriber to receive results after operation at Subscriber end
-    #===============================================================================
+    print('waiting for global model')
+    time.sleep(20) #put the loca server in sleep for 60 sec
     client.on_message = on_message
     while not qLS_valence.empty():
-        message = qLS_valence.get()
-
-        if message is None:
-            continue
-
-        msg = message.payload.decode('utf-8')
-
-        # Deserialization the encoded received JSON data
-        global_weights = json2NumpyWeights(msg)
-
-        model.set_weights(global_weights) 
-        #Replacing the old model with the newley received model from Global Server
-
-       
-
-    if (i == videos): #if all the videos are done means no more data from User
-        break
-
+    	message = qLS_valence.get()
+    	if message is None:
+    		continue
+    	msg = message.payload.decode('utf-8')
+    	model1='s_all_reconstructed_valence_encoded_global.h5'
+    	model.load_weights(os.path.join(OUTPUT, 'Models', 'valence', model1))
+    if(i == videos):
+    	break
     i +=1
-    
-    
-# model3 = 's_all_MDCARE_valence_1.h5'
-# model.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model3))
