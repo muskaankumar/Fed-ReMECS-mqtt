@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import os 
+import pickle 
 #=================================================================================================
 # Physiological data read according to the client
 #=================================================================================================
@@ -23,9 +24,9 @@ def get_emg_eog_gsr_labels_data(p):
     label_data_all = []
 #     file = os.path.join(r, i) //check later
     if p<=8:
-        file = '/home/bits/Downloads/data_preprocessed_python/s0'+str(p+1)+'.dat'
+        file = '/home/csis/Documents/data_preprocessed_python/s0'+str(p+1)+'.dat'
     else:
-        file = '/home/bits/Downloads/data_preprocessed_python/s'+str(p+1)+'.dat'
+        file = '/home/csis/Documents/data_preprocessed_python/s'+str(p+1)+'.dat'
     
     with open(file, 'rb') as s_data: 
         content = pickle.load(s_data, encoding='latin1')
@@ -41,14 +42,16 @@ def get_emg_eog_gsr_labels_data(p):
     EOG_all = p_all[:,:,32:34,:]
     GSR_all = p_all[:,:,36,:]
     
+    print(EMG_all.shape,GSR_all.shape,len(label_data_all))
+    
     return EMG_all,EOG_all,GSR_all,label_data_all
 
 ##===================================================
 # 
 ##===================================================
 def get_eog_v(i,EOG_all):
-    s=EOG_all
-    
+    s=EOG_all[0]
+    print('shape of s',s.shape)
     t = s[i].T
     t = t[128*3:]
     t = t.reshape((-1, 128, 2))
@@ -57,7 +60,7 @@ def get_eog_v(i,EOG_all):
     return t_EOG
 
 def get_emg_v(i,EMG_all):
-    s=EMG_all
+    s=EMG_all[0]
     
     t = s[i].T
     t = t[128*3:]
@@ -67,7 +70,7 @@ def get_emg_v(i,EMG_all):
     return t_EMG
 
 def get_gsr_v(i,GSR_all):
-    s=GSR_all
+    s=GSR_all[0]
     
     t = s[i].T
     t = t[128*3:]
@@ -93,11 +96,14 @@ def get_data_video(i,EMG_all,EOG_all,GSR_all,label_data_all):
     y = np.ones((60,1))*l[i]
     
     temp = []
-    for label in y:
-        if label>5:
-            temp.append(1)
-        else:
-            temp.append(0)
+    for j in y:
+      y_val=[]
+      for i in j:
+          if i>5:
+              y_val.append(1)
+          else:
+              y_val.append(0)
+      temp.append(y_val)
             
     y_all = np.array(temp)
     y_all_concat = y_all.reshape(-1, 4)
