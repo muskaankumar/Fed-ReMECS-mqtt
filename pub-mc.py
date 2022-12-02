@@ -71,7 +71,7 @@ from keras.layers import Dense, Flatten, Dropout, ZeroPadding3D
 from keras.preprocessing.image import ImageDataGenerator
 #from keras.layers.recurrent import LSTM                                     check later 
 from keras.models import Sequential, load_model
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers.legacy import Adam
 #from keras.layers.wrappers import TimeDistributed                            check later 
 from keras.layers import Dense,Dropout,Conv3D,Input,MaxPool3D,Flatten,Activation,Conv2D, MaxPooling2D, BatchNormalization
 from keras import regularizers
@@ -161,7 +161,7 @@ client = mqtt.Client(client_name) #mqtt Client
 client.on_connect = on_connect
 client.connect(mqttBroker, 1883) #mqtt broker connect
 
-topic_list =[('GlobalModel',0)] #Subscription topic list
+topic_list =[('GlobalModel_EMG',0),('GlobalModel_EOG',0),('GlobalModel_GSR',0),('GlobalModel_Valence',0),('GlobalModel_Arousal',0)] #Subscription topic list
 
 client.loop_start()
 
@@ -483,8 +483,23 @@ print('EMG: ',all_emg,'EOG: ',all_eog,'GSR: ',all_gsr)
 print('All Done! Client Closed')
 print('Start valence')
 
-i=0
+i_vid=0
 init_m=0
+fm_model_emg = emg_model()
+fm_model_eog = eog_model()
+fm_model_gsr = gsr_model()
+OUTPUT="/home/csis/Documents/Fed-ReMECS-mqtt-main"
+model1='s_all_reconstructed_emg_encoded_global.h5'
+fm_model_emg.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+global_weight_emg=fm_model_emg.get_weights()
+
+model1='s_all_reconstructed_eog_encoded_global.h5'
+fm_model_eog.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+global_weight_eog=fm_model_eog.get_weights()
+
+model1='s_all_reconstructed_gsr_encoded_global.h5'
+fm_model_gsr.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+global_weight_gsr=fm_model_gsr.get_weights()
 
 #===============================================================================
 #For valence 
@@ -525,7 +540,7 @@ for jj in range(0,videos): #Video loop for each participants
         # Model initialization
         #===================================================
     if init_m == 0:
-        model=valence_classification()
+        model=valence_classification(global_weight_emg,global_weight_eog,global_weight_gsr)
         init_m = init_m+1
 
 
@@ -548,7 +563,7 @@ for jj in range(0,videos): #Video loop for each participants
 
 #     fm_model_emg.compile(optimizer=Adam(learning_rate=0.001), loss = 'mse')
     batch_size = 32
-    nb_epoch = 100
+    nb_epoch = 10	
     early_stopper = EarlyStopping(patience=20, restore_best_weights=True)
     history10 = model.fit(
                 X_train,
@@ -575,7 +590,7 @@ for jj in range(0,videos): #Video loop for each participants
             t.append([0,1])
 
     target_names = ['Low Valence','High Valence']
-    c1 = classification_report(y_true, t, target_names=target_names)
+    c1 = classification_report(y_true, t, target_names=target_names,output_dict=True)
     print(c1)
     
 #     tmp_y = fm_model.predict(x_train_emg)
@@ -619,8 +634,8 @@ for jj in range(0,videos): #Video loop for each participants
     #=======================================================================================
     #Send the model performance from each to server for checking Global Model's performance
     #========================================================================================
-    if i >=0:
-        model_performance = {'Local_Model':p,'classification_report':c1}
+    if i_vid >=0:
+        model_performance = {'Local_Model':p,'Low_Valence_precision':c1['Low Valence']['precision'],'High_Valence_precision':c1['High Valence']['precision'],'Low_Valence_recall':c1['Low Valence']['recall'],'High_Valence_recall':c1['High Valence']['recall'],'Low_Valence_f1-score':c1['Low Valence']['f1-score'], 'High_Valence_f1-score':c1['High Valence']['f1-score']}
         encoded_model_performance = json.dumps(model_performance)
         client.publish("ModelPerformance_valence", payload = encoded_model_performance)
         print("Local Model Performance Broadcasted for "+ p_v +" to Topic:-> ModelPerformance_valence")
@@ -672,6 +687,197 @@ for jj in range(0,videos): #Video loop for each participants
     	msg = message.payload.decode('utf-8')
     	model1='s_all_reconstructed_valence_encoded_global.h5'
     	model.load_weights(os.path.join(OUTPUT, 'Models', 'valence', model1))
-    if(i == videos):
+    	print('got global weights')
+    if(i_vid == videos):
     	break
-    i +=1
+    i_vid +=1
+#===============================================================================
+#For arousal classification
+#===============================================================================
+
+i_vid=0
+for jj in range(0,videos): #Video loop for each participants
+    v = jj+1 #Video number
+    print('=========================================================================')
+    p_v = 'Person:'+ ' ' +str(p)+ ' ' +'Video:'+str(v)
+    print(p_v)
+
+    emotion_label =[]
+    
+    t_EMG,t_EOG,t_GSR,y = get_data_video(jj,EMG_all,EOG_all,GSR_all,label_data_all)
+
+    from sklearn.model_selection import train_test_split
+    X2_train_a, X2_test_a, y2_train_a, y2_test_a = train_test_split(t_EMG, y[:,1], test_size=0.2, random_state=42)
+    X3_train_a, X3_test_a, y3_train_a, y3_test_a = train_test_split(t_EOG, y[:,1], test_size=0.2, random_state=42)
+    X4_train_a, X4_test_a, y4_train_a, y4_test_a = train_test_split(t_GSR, y[:,1], test_size=0.2, random_state=42)
+    
+    val = []
+    val.append(X3_train)
+    val.append(X2_train)
+    val.append(X4_train)
+
+    X_train = val
+
+    val = []
+    val.append(X3_test)
+    val.append(X2_test)
+    val.append(X4_test)
+    X_test = val
+
+    y_train = y2_train
+    y_test = y2_test
+
+        #===================================================
+        # Model initialization
+        #===================================================
+    if init_m == 0:
+        model=arousal_model(global_weight_emg,global_weight_eog,global_weight_gsr)
+        init_m = init_m+1
+
+
+        #===============================================================
+        # Emotion Classification --> Valence and Arousal
+        #===============================================================
+
+#     if c == 0: #For the first time model will return 9 or None
+#         tmp_y = np.array([[9,9]])
+        
+        
+        
+# #         fm_model.fit(x_FF, y_act, epochs = 1, batch_size = 1, verbose=0)
+
+#         c=c+1
+
+#     else:
+#         tmp_y = fm_model.predict(x_FF)
+#         fm_model.fit(x_FF, y_act, epochs = 1, batch_size = 1, verbose=0)
+
+#     fm_model_emg.compile(optimizer=Adam(learning_rate=0.001), loss = 'mse')
+    batch_size = 32
+    nb_epoch = 10	
+    early_stopper = EarlyStopping(patience=20, restore_best_weights=True)
+    history10 = model.fit(
+                X_train,
+                y_train,
+                batch_size=batch_size,
+                validation_data=(X_test, y_test),
+                verbose=1,
+                # callbacks=[early_stopper],
+                epochs=nb_epoch)
+    
+    
+   
+
+    from sklearn.metrics import classification_report, confusion_matrix
+    y_true = y_test
+    y_pred = model.predict(X_test)
+    t = []
+    for i in y_pred:
+    	if i[0]>=i[1]:
+    		t.append([1,0])
+    	else:
+    		t.append([0,1])
+    target_names = ['Low Arousal','High Arousal']
+    c2 = classification_report(y_true, t, target_names=target_names,output_dict=True)
+    print(c2)
+    
+#     tmp_y = fm_model.predict(x_train_emg)
+
+#         if slider_eda.reached_end_of_list():
+#             break
+
+
+    #===========================================
+    # Performance matric update
+    #===========================================
+    
+#     results_emg = fm_model.evaluate(x_test_emg, y_test_emg)
+#     print("Test loss for EMG signals: ", results_emg)
+#     results_eog = fm_model.evaluate(x_test_eog, y_test_eog)
+#     print("Test loss for EOG signals: ", results_eog)
+#     results_gsr = fm_model.evaluate(x_test_gsr, y_test_gsr)
+#     print("Test loss for GSR signals: ", results_gsr)
+    
+#     y_pred = np.array([np.argmax(tmp_y[0])])
+
+#     mc_y_act = np.array([np.argmax(y_act)])
+
+#     bac = accuracy_score(mc_y_act,y_pred)
+#     f1 = f1_score(mc_y_act,y_pred, average='micro')
+
+#     print('-------------------------------------------------------------------------------')
+#     print('Actual Class:',discrete_emotion[mc_y_act[0]])
+#     print('Fusion Model predicted:{}'.format(discrete_emotion[y_pred[0]]))
+
+
+#     print(client_name+'-->'+'Accuracy:{}'.format(bac))
+#     print(client_name+'-->'+'F1-score:{}'.format(f1))
+    print('-------------------------------------------------------------------------------')
+
+#     all_emo.append([p,v, bac,f1, mc_y_act[0], y_pred[0]])
+#     all_emg.append(results_emg)
+#     all_eog.append(results_eog)
+#     all_gsr.append(results_gsr)
+
+    #=======================================================================================
+    #Send the model performance from each to server for checking Global Model's performance
+    #========================================================================================
+    if i_vid >=0:
+        model_performance = {'Local_Model':p,'Low_Arousal_precision':c2['Low Arousal']['precision'],'High_Arousal_precision':c2['High Arousal']['precision'],'Low_Arousal_recall':c2['Low Arousal']['recall'],'High_Arousal_recall':c2['High Arousal']['recall'],'Low_Arousal_f1-score':c2['Low Arousal']['f1-score'], 'High_Arousal_f1-score':c2['High Arousal']['f1-score']}
+        encoded_model_performance = json.dumps(model_performance)
+        client.publish("ModelPerformance_arousal", payload = encoded_model_performance)
+        print("Local Model Performance Broadcasted for "+ p_v +" to Topic:-> ModelPerformance_Arousal")
+
+
+
+    #==========================================================
+    # Model weight compress into JSON format
+    #==========================================================
+
+    #Message Generation and Encoding into JSON
+    #model_weights_valence = model.get_weights()
+    #encodedModelWeights_valence = json.dumps(model_weights_valence,cls=Numpy2JSONEncoder)
+
+    #==========================================================
+    # Broadcast (Publish) Local model weights to the mqttBroker
+    #==========================================================
+    
+    
+    
+    
+    
+    
+    model2= 's_all_reconstructed_arousal_encoded'+str(p)+'.h5'
+    #encoder_emg = Model(input0, encoded_emg)
+    OUTPUT="/home/csis/Documents/Fed-ReMECS-mqtt-main"
+
+    try:
+    	os.remove(os.path.join(OUTPUT, 'Models', 'arousal', model2))
+    except:
+    	pass
+    model.save(os.path.join(OUTPUT, 'Models', 'arousal', model2))
+    #model_weights_emg = fm_model_emg.get_weights()
+    #encodedModelWeights_emg = json.dumps(model_weights_emg,cls=Numpy2JSONEncoder)
+    
+    client.publish("LocalModel_for_Arousal", payload = 'abc')
+    
+
+    print("Local Model Broadcasted for "+ p_v +" to Topic:-> LocalModel")
+
+    #**********************************************************
+    print('waiting for global model')
+    time.sleep(20) #put the loca server in sleep for 60 sec
+    client.on_message = on_message
+    while not qLS_arousal.empty():
+    	message = qLS_arousal.get()
+    	if message is None:
+    		continue
+    	msg = message.payload.decode('utf-8')
+    	model1='s_all_reconstructed_arousal_encoded_global.h5'
+    	model.load_weights(os.path.join(OUTPUT, 'Models', 'arousal', model1))
+    	print('got global weights')
+    if(i_vid == videos):
+    	break
+    i_vid +=1
+    
+print('All done')
