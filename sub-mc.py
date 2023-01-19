@@ -113,7 +113,7 @@ while True:
 
     if (i>0): #after first round of model exchange global models performance is calculated
         print('waiting for performance metrics')
-        time.sleep(10)
+        time.sleep(25)#check 15
         print('Now Collecting Local Model performance Metrics....')
         local_model_performace = list()
         global_model_result=list()
@@ -145,7 +145,8 @@ while True:
             break #No more data from local model
 
     #**********************************************************
-    time.sleep(8) #to receive model weights
+    print('waiting to receive EMG model weights')
+    time.sleep(20) #to receive model weights
     #**********************************************************
 
     #=========================================================
@@ -153,6 +154,8 @@ while True:
     #=========================================================
     all_local_model_weights_emg = list()
     model_available=0
+    
+    print('sleep done emg')
     
     while not qGSModel_emg.empty():
             message = qGSModel_emg.get()
@@ -220,7 +223,8 @@ while True:
 #         break
         
         
-    time.sleep(8) #to receive model weights
+    print('waiting to receive EOG model weights')
+    time.sleep(34) #to receive model weights
     all_local_model_weights_eog = list()
 
     for p in range(n):
@@ -276,7 +280,8 @@ while True:
 #         break
      
     
-    time.sleep(8) #to receive model weights
+    print('waiting to receive GSR model weights')
+    time.sleep(13) #to receive model weights
     all_local_model_weights_gsr = list()
 
     for p in range(n):
