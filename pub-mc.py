@@ -92,6 +92,7 @@ from keras.layers import Dense, Input
 from keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D, Conv1DTranspose, Flatten, Reshape, LeakyReLU
 from keras.models import Model
 from sklearn.model_selection import train_test_split
+import random 
 # from multi_label_performance_metrics_utils import *
 
 
@@ -202,7 +203,7 @@ indx = 0
 c=0
 ccc =0
 i =0
-videos = 1 #Total Number of Videos
+videos = 40 #Total Number of Videos
 #=================================================================================================
 
 print('-----------------------------------------')
@@ -211,7 +212,17 @@ print('-----------------------------------------')
 #=======================================
 # MAIN Loop STARTS HERE
 #=======================================
-for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoes if you want all 40 
+
+#vid=[]
+#for m in range(40):
+#	vid.append(m)
+
+#vid_train=random.sample(vid, 30)
+
+vid_train=2
+#vid_test=10
+vid_test_last=4
+for jj in range(vid_train): #Video loop for each participants Replce 6 with vidoes if you want all 40 
     v = jj+1 #Video number
     print('=========================================================================')
     p_v = 'Person:'+ ' ' +str(p)+ ' ' +'Video:'+str(v)
@@ -256,6 +267,7 @@ for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoe
     fm_model_emg.compile(optimizer=Adam(learning_rate=0.001), loss = 'mse')
     early_stopper = EarlyStopping(patience=10, restore_best_weights=True)
 
+    start_time=time.time()
     history1 = fm_model_emg.fit(x_train_emg, x_train_emg,
                         epochs=3,
                         batch_size=16,
@@ -299,7 +311,7 @@ for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoe
     fm_model_eog.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
     #model_weights_emg = fm_model_emg.get_weights()
     #encodedModelWeights_emg = json.dumps(model_weights_emg,cls=Numpy2JSONEncoder)
-    client.publish("LocalModel_for_EoG_Signal saved", payload = 'abc')
+    client.publish("LocalModel_for_EOG_Signal saved", payload = 'abc')
     
     
     fm_model_gsr.compile(optimizer=Adam(learning_rate=0.001), loss = 'mse')
@@ -334,9 +346,13 @@ for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoe
     fm_model_gsr.save(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
     #model_weights_emg = fm_model_emg.get_weights()
     #encodedModelWeights_emg = json.dumps(model_weights_emg,cls=Numpy2JSONEncoder)
-    client.publish("LocalModel_for_gsr_Signal saved", payload = 'abc')
+    client.publish("LocalModel_for_GSR_Signal saved", payload = 'abc')
+    
+    end_time=time.time()
+    print('time taken for local training autoencoders ',end_time-start_time)
     
     print('All models saved')
+    start_time=time.time()
     
     results_emg = fm_model_emg.evaluate(x_test_emg, y_test_emg)
     print("Test loss for EMG signals: ", results_emg)
@@ -397,10 +413,15 @@ for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoe
     
 
     print("Local Model Broadcasted for "+ p_v +" to Topic:-> LocalModel")
+    
+    end_time=time.time()
+    print('time taken for testing,sending is ',end_time-start_time)
     print('Waiting for global models')
+    
+    client.on_message = on_message   #added here
 
     #**********************************************************
-    time.sleep(45) #put the loca server in sleep for 60 sec
+    time.sleep(100) #put the loca server in sleep for 60 sec  #82
     #**********************************************************
 
     #===============================================================================
@@ -411,7 +432,7 @@ for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoe
     #===============================================================================
     # Publisher as subscriber to receive results after operation at Subscriber end
     #===============================================================================
-    client.on_message = on_message
+    #client.on_message = on_message   #changed
     while not qLS_emg.empty():
         message = qLS_emg.get()
 
@@ -422,7 +443,8 @@ for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoe
 
         # Deserialization the encoded received JSON data
         model1='s_all_reconstructed_emg_encoded_global.h5'
-        fm_model_emg.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1)) 
+        fm_model_emg.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+        print('loaded global weights emg') 
         #Replacing the old model with the newley received model from Global Server
 
 #         fm_model_eog.set_weights(global_weights)
@@ -439,6 +461,7 @@ for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoe
         # Deserialization the encoded received JSON data
         model1='s_all_reconstructed_eog_encoded_global.h5'
         fm_model_eog.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+        print('loaded global weights eog')
         
     while not qLS_gsr.empty():
         message = qLS_gsr.get()
@@ -451,6 +474,7 @@ for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoe
         # Deserialization the encoded received JSON data
         model1='s_all_reconstructed_gsr_encoded_global.h5'
         fm_model_gsr.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+        print('loaded global weights gsr')
     
     
     
@@ -481,7 +505,62 @@ for jj in range(0,videos): #Video loop for each participants Replce 6 with vidoe
 print('loss are')
 print('EMG: ',all_emg,'EOG: ',all_eog,'GSR: ',all_gsr)
 print('All Done! Client Closed')
-print('Start valence')
+
+
+#------------TESTING----------
+x_test_emg_all=None
+x_test_eog_all=None
+x_test_gsr_all=None
+model1='s_all_reconstructed_emg_encoded_global.h5'
+fm_model_emg.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+model1='s_all_reconstructed_eog_encoded_global.h5'
+fm_model_eog.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+model1='s_all_reconstructed_gsr_encoded_global.h5'
+fm_model_gsr.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
+for jj in range(vid_train,vid_test_last): 
+    
+    t_EMG,t_EOG,t_GSR,y = get_data_video(jj,EMG_all,EOG_all,GSR_all,label_data_all)
+    
+    
+    if x_test_emg_all is None:
+    	x_test_emg_all=t_EMG
+    	x_test_eog_all=t_EOG
+    	x_test_gsr_all=t_GSR
+    	
+    else:
+    	x_test_emg_all=np.concatenate((x_test_emg_all,t_EMG),axis=0)
+    	x_test_eog_all=np.concatenate((x_test_eog_all,t_EOG),axis=0)
+    	x_test_gsr_all=np.concatenate((x_test_gsr_all,t_GSR),axis=0)
+    	
+results_emg = fm_model_emg.evaluate(x_test_emg_all, x_test_emg_all)
+print("Test loss for EMG signals: ", results_emg)
+results_eog = fm_model_eog.evaluate(x_test_eog_all, x_test_eog_all)
+print("Test loss for EOG signals: ", results_eog)
+results_gsr = fm_model_gsr.evaluate(x_test_gsr_all, x_test_gsr_all)
+print("Test loss for GSR signals: ", results_gsr)
+
+#Global Model Result Save
+from csv import writer
+ 
+# List that we want to add as a new row
+List = [p,results_emg,results_eog,results_gsr]
+ 
+
+with open('/home/csis/Documents/Fed-ReMECS-mqtt-main/Federated_Results/results.csv', 'a') as f_object:
+ 
+    # Pass this file object to csv.writer()
+    # and get a writer object
+    writer_object = writer(f_object)
+ 
+    # Pass the list as an argument into
+    # the writerow()
+    writer_object.writerow(List)
+ 
+    # Close the file object
+    f_object.close()
+
+
+print('---------------Start valence----------------')
 
 i_vid=0
 init_m=0
@@ -504,7 +583,7 @@ global_weight_gsr=fm_model_gsr.get_weights()
 #===============================================================================
 #For valence 
 #===============================================================================
-for jj in range(0,videos): #Video loop for each participants
+for jj in range(0,vid_train): #Video loop for each participants
     v = jj+1 #Video number
     print('=========================================================================')
     p_v = 'Person:'+ ' ' +str(p)+ ' ' +'Video:'+str(v)
@@ -691,12 +770,86 @@ for jj in range(0,videos): #Video loop for each participants
     if(i_vid == videos):
     	break
     i_vid +=1
+
+
+#------------TESTING----------
+x_test_emg_all=None
+x_test_eog_all=None
+x_test_gsr_all=None
+y_all=None
+
+model1='s_all_reconstructed_valence_encoded_global.h5'
+model.load_weights(os.path.join(OUTPUT, 'Models', 'valence', model1))
+
+for jj in range(vid_train,vid_test_last): 
+    
+    t_EMG,t_EOG,t_GSR,y = get_data_video(jj,EMG_all,EOG_all,GSR_all,label_data_all)
+    
+    
+    if x_test_emg_all is None:
+    	x_test_emg_all=t_EMG
+    	x_test_eog_all=t_EOG
+    	x_test_gsr_all=t_GSR
+    	y_all=y[:,0]
+    	
+    else:
+    	x_test_emg_all=np.concatenate((x_test_emg_all,t_EMG),axis=0)
+    	x_test_eog_all=np.concatenate((x_test_eog_all,t_EOG),axis=0)
+    	x_test_gsr_all=np.concatenate((x_test_gsr_all,t_GSR),axis=0)
+    	y_all=np.concatenate((y_all,y[:,0]),axis=0)
+    	
+test = []
+test.append(x_test_eog_all)
+test.append(x_test_emg_all)
+test.append(x_test_gsr_all)
+
+X_test = test
+
+from sklearn.metrics import classification_report, confusion_matrix
+
+y_true = y_all
+
+y_pred = model.predict(X_test)
+t = []
+for i in y_pred:
+	if i[0]>=i[1]:
+		t.append([1,0])
+	else:
+		t.append([0,1])
+
+target_names = ['Low Valence','High Valence']
+c1 = classification_report(y_true, t, target_names=target_names,output_dict=True)
+print(c1)
+
+#Global Model Result Save
+from csv import writer
+ 
+# List that we want to add as a new row
+List =[p,c1['Low Valence']['precision'],c1['High Valence']['precision'],c1['Low Valence']['recall'],c1['High Valence']['recall'],c1['Low Valence']['f1-score'], c1['High Valence']['f1-score']]
+ 
+
+with open('/home/csis/Documents/Fed-ReMECS-mqtt-main/Federated_Results/valence_results.csv', 'a') as f_object:
+ 
+    # Pass this file object to csv.writer()
+    # and get a writer object
+    writer_object = writer(f_object)
+ 
+    # Pass the list as an argument into
+    # the writerow()
+    writer_object.writerow(List)
+ 
+    # Close the file object
+    f_object.close()
+
+
 #===============================================================================
 #For arousal classification
 #===============================================================================
 
+print('----------------------STARTING AROUSAL TRAINING---------------')
+
 i_vid=0
-for jj in range(0,videos): #Video loop for each participants
+for jj in range(0,vid_train): #Video loop for each participants
     v = jj+1 #Video number
     print('=========================================================================')
     p_v = 'Person:'+ ' ' +str(p)+ ' ' +'Video:'+str(v)
@@ -879,5 +1032,71 @@ for jj in range(0,videos): #Video loop for each participants
     if(i_vid == videos):
     	break
     i_vid +=1
+
+#------------TESTING----------
+x_test_emg_all=None
+x_test_eog_all=None
+x_test_gsr_all=None
+y_all=None
+
+model1='s_all_reconstructed_arousal_encoded_global.h5'
+model.load_weights(os.path.join(OUTPUT, 'Models', 'arousal', model1))
+
+for jj in range(vid_train,vid_test_last): 
     
+    t_EMG,t_EOG,t_GSR,y = get_data_video(jj,EMG_all,EOG_all,GSR_all,label_data_all)
+    
+    
+    if x_test_emg_all is None:
+    	x_test_emg_all=t_EMG
+    	x_test_eog_all=t_EOG
+    	x_test_gsr_all=t_GSR
+    	y_all=y[:,1]
+    	
+    else:
+    	x_test_emg_all=np.concatenate((x_test_emg_all,t_EMG),axis=0)
+    	x_test_eog_all=np.concatenate((x_test_eog_all,t_EOG),axis=0)
+    	x_test_gsr_all=np.concatenate((x_test_gsr_all,t_GSR),axis=0)
+    	y_all=np.concatenate((y_all,y[:,1]),axis=0)
+    	
+test = []
+test.append(x_test_eog_all)
+test.append(x_test_emg_all)
+test.append(x_test_gsr_all)
+
+X_test = test
+
+from sklearn.metrics import classification_report, confusion_matrix
+y_true = y_all
+y_pred = model.predict(X_test)
+t = []
+for i in y_pred:
+	if i[0]>=i[1]:
+		t.append([1,0])
+	else:
+		t.append([0,1])
+target_names = ['Low Arousal','High Arousal']
+c2 = classification_report(y_true, t, target_names=target_names,output_dict=True)
+print(c2)
+
+#Global Model Result Save
+from csv import writer
+ 
+# List that we want to add as a new row
+List =[p,c2['Low Arousal']['precision'],c2['High Arousal']['precision'],c2['Low Arousal']['recall'],c2['High Arousal']['recall'],c2['Low Arousal']['f1-score'],c2['High Arousal']['f1-score']]
+ 
+
+with open('/home/csis/Documents/Fed-ReMECS-mqtt-main/Federated_Results/arousal_results.csv', 'a') as f_object:
+ 
+    # Pass this file object to csv.writer()
+    # and get a writer object
+    writer_object = writer(f_object)
+ 
+    # Pass the list as an argument into
+    # the writerow()
+    writer_object.writerow(List)
+ 
+    # Close the file object
+    f_object.close()    
+
 print('All done')
