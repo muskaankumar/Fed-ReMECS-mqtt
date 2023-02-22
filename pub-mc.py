@@ -219,11 +219,11 @@ print('-----------------------------------------')
 
 #vid_train=random.sample(vid, 30)
 
-vid_train=36
+vid_train=30
 v=str(vid_train)
 client.publish("Number_of_videos", payload = v)
 #vid_test=10
-vid_test_last=4
+vid_test_last=40
 for jj in range(vid_train): #Video loop for each participants Replce 6 with vidoes if you want all 40 
     v = jj+1 #Video number
     print('=========================================================================')
