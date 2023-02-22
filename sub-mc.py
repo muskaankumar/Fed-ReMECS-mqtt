@@ -22,6 +22,7 @@ qGSValence=queue.Queue()
 qGSPerformance_Valence=queue.Queue()
 qGSArousal=queue.Queue()
 qGSPerformance_Arousal=queue.Queue()
+qGS_videos=queue.Queue()
 
 
 
@@ -49,6 +50,7 @@ def on_connect(client, userdata, flags, rc):
 
 
 def on_message(client, userdata, message):
+
     if (message.topic == "LocalModel_for_EMG_Signal saved"):
         print("Message received from Local Model for EMG")
         qGSModel_emg.put(message)
@@ -62,7 +64,6 @@ def on_message(client, userdata, message):
     if(message.topic == 'ModelPerformance'):
         print('Performance metric received  from Local Models')
         qGSPerfm.put(message)
-        
     if(message.topic == 'ModelPerformance_valence'):
         print('Performance metric received  from Local Models')
         qGSPerformance_Valence.put(message)
@@ -72,9 +73,16 @@ def on_message(client, userdata, message):
     if(message.topic == 'ModelPerformance_arousal'):
         print('Performance metric received  from Local Models')
         qGSPerformance_Arousal.put(message)
+    if (message.topic == "Number_of_videos"):
+        print("Message received from Number_of_videos")
+        qGS_videos.put(message)
     if (message.topic == "LocalModel_for_Arousal"):
         print("Message received from Local Model for Arousal")
-        qGSArousal.put(message)  
+        qGSArousal.put(message)
+	
+
+	
+	
        
     
 
@@ -86,7 +94,7 @@ client = mqtt.Client(client_id ="GlobalServer", clean_session=True)
 client.on_connect = on_connect
 client.connect(mqttBroker,1883)
 
-topic_list =[('LocalModel_for_EMG_Signal saved',0),('LocalModel_for_EOG_Signal saved',0),('LocalModel_for_GSR_Signal saved',0),('ModelPerformance',0),('LocalModel_for_Valence',0),('ModelPerformance_valence',0),('LocalModel_for_Arousal',0),('ModelPerformance_arousal',0)]
+topic_list =[('LocalModel_for_EMG_Signal saved',0),('LocalModel_for_EOG_Signal saved',0),('LocalModel_for_GSR_Signal saved',0),('ModelPerformance',0),('LocalModel_for_Valence',0),('ModelPerformance_valence',0),('LocalModel_for_Arousal',0),('ModelPerformance_arousal',0),('Number_of_videos',0)]
 
 client.loop_start()
 client.on_message = on_message
@@ -100,8 +108,11 @@ print('---------------------------------------------------------------')
 
 i = 0
 
+v=qGS_videos.get()
+vids = int(v.payload.decode('utf-8'))
+print(vids)
 
-while True:
+for z in range (vids):
     print('---------STARTED-------------')
     print('Global Server')
     # print('Round: ',i)
@@ -113,10 +124,13 @@ while True:
 
     if (i>0): #after first round of model exchange global models performance is calculated
         print('waiting for performance metrics')
-        time.sleep(25)#check 15
+        #time.sleep(30)#check 15
         print('Now Collecting Local Model performance Metrics....')
         local_model_performace = list()
         global_model_result=list()
+        while qGSPerfm.qsize() != n:
+            pass
+ 
         while not qGSPerfm.empty():
             message = qGSPerfm.get()
 
@@ -145,8 +159,8 @@ while True:
             break #No more data from local model
 
     #**********************************************************
-    print('waiting to receive EMG model weights')
-    time.sleep(20) #to receive model weights
+    print(f'Waiting to receive EMG model weights. Queue Size : {qGSModel_emg.qsize()}')
+    #time.sleep(40) #to receive model weights
     #**********************************************************
 
     #=========================================================
@@ -155,8 +169,10 @@ while True:
     all_local_model_weights_emg = list()
     model_available=0
     
-    print('sleep done emg')
-    
+    while qGSModel_emg.qsize() != n:
+            time.sleep(10)
+            print(f'EMG message not recieved. Queue Size : {qGSModel_emg.qsize()}')
+    print(f'EMG message recieved. Queue Size : {qGSModel_emg.qsize()}')
     while not qGSModel_emg.empty():
             message = qGSModel_emg.get()
 
@@ -165,11 +181,11 @@ while True:
 
             msg_model = message.payload.decode('utf-8')
             print('msg_model is ',msg_model)
-            if(msg_model=='abc'):
+            if(msg_model=='EMG'):
             	model_available=1
 
     if(model_available==0):
-    	print("There is no local model to receoive")
+    	print("There is no local model to receive")
     	break
     
     for p in range(n):
@@ -206,25 +222,20 @@ while True:
         fm_model_emg_global.save_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1),overwrite=True)
 
         client.publish("GlobalModel_EMG", payload = 'abc') #str(Global_weights), qos=0, retain=False)
+        client.publish("GlobalModel_EMG", payload = 'abc')
         print("Broadcasted Global Model EMG to Topic:--> GlobalModel")
 
         #**********************************************************
-        time.sleep(5)#pause it so that the publisher gets the Global model
-        #**********************************************************
-
-        #====================================================================
-
-
+        time.sleep(5) #pause it so that the publisher gets the Global model
+        #*********************************************************
+    print('Endvids EMG.')
     print('---------------HERE------------------')
     #===================================================================================
     # If No more data from Publisher exit and server closed connection to the broker
     #===================================================================================
-#     if(i >0 and len(all_local_model_weights_emg)==0): #loop break no message from producer
-#         break
-        
-        
-    print('waiting to receive EOG model weights')
-    time.sleep(34) #to receive model weights
+    
+    print('Waiting to receive EOG model weights')
+    #time.sleep(34) #to receive model weights
     all_local_model_weights_eog = list()
 
     for p in range(n):
@@ -281,7 +292,7 @@ while True:
      
     
     print('waiting to receive GSR model weights')
-    time.sleep(13) #to receive model weights
+    #time.sleep(10) #to receive model weights
     all_local_model_weights_gsr = list()
 
     for p in range(n):
@@ -350,52 +361,46 @@ model1='s_all_reconstructed_gsr_encoded_global.h5'
 fm_model_gsr.load_weights(os.path.join(OUTPUT, 'Models', 'autoencoders', model1))
 global_weight_gsr=fm_model_gsr.get_weights()
 
-i = 0
-while True:
+i = 0 
+print(f"{i} Size of payload : {vids}")
+
+for z in range (vids):
     print('---------STARTED-------------')
     print('Global Server')
-    # print('Round: ',i)
+    print('Now Collecting Local Model performance Metrics....')
+    local_model_performace = list()
+    while qGSPerformance_Valence.empty():
+        time.sleep(5)
+        print(f"Size of valence queue: {qGSPerformance_Valence.qsize()}")
+    while not qGSPerformance_Valence.empty():
+        message = qGSPerformance_Valence.get()
 
-    if (i>0):
-    	print('waiting for performance metrics')
-    	time.sleep(5)
-    #====================================================
-    # Global Model Performance Printing
-    #====================================================
+        if message is None:
+            continue
 
-    if (i>0): #after first round of model exchange global models performance is calculated
-        print('Now Collecting Local Model performance Metrics....')
-        local_model_performace = list()
-        while not qGSPerformance_Valence.empty():
-            message = qGSPerformance_Valence.get()
+        msg_model_performance = message.payload.decode('utf-8')
 
-            if message is None:
-                continue
+        decodedModelPerfromance = list(json.loads(msg_model_performance).values())
+        local_model_performace.append(decodedModelPerfromance)
 
-            msg_model_performance = message.payload.decode('utf-8')
+    global_model_performance = np.array(local_model_performace)
+    global_performance = np.mean(global_model_performance, axis=0)
 
-            decodedModelPerfromance = list(json.loads(msg_model_performance).values())
-            local_model_performace.append(decodedModelPerfromance)
+    len_local_perfm = len(local_model_performace)
+    print('Total Model Performance received:',len_local_perfm)
 
-        global_model_performance = np.array(local_model_performace)
-        global_performance = np.mean(global_model_performance, axis=0)
-
-        len_local_perfm = len(local_model_performace)
-        print('Total Model Performance received:',len_local_perfm)
-
-        if (len_local_perfm != 0):
-            global_model_result.append([global_performance[1]])
-            print('----------------------------------------------------')
-            print('F1 score for Low Valence:',global_performance[5])
-            print('F1 score for High Valence:',global_performance[6])
-            
-            print('----------------------------------------------------')
-        else:
-            break #No more data from local model
+    if (len_local_perfm != 0):
+        global_model_result.append([global_performance[1]])
+        print('----------------------------------------------------')
+        print('F1 score for Low Valence:',global_performance[5])
+        print('F1 score for High Valence:',global_performance[6])
+        
+        print('----------------------------------------------------')
+    else:
+        break #No more data from local model
 
     #**********************************************************
-    print('waiting for local models')
-    time.sleep(10) #to receive model weights
+    #time.sleep(20) #to receive model weights
     #**********************************************************
 
     #=========================================================
@@ -403,7 +408,10 @@ while True:
     #=========================================================
     all_local_model_weights_valence = list()
     model_available=0
-    
+    print("Waiting for valence message...")
+    while qGSValence.empty():
+        time.sleep(5)
+    print("Recieved message.")
     while not qGSValence.empty():
             message = qGSValence.get()
 
@@ -412,7 +420,7 @@ while True:
 
             msg_model = message.payload.decode('utf-8')
             print('msg_model is ',msg_model)
-            if(msg_model=='abc'):
+            if(msg_model=='valence'):
             	model_available=1
 
     if(model_available==0):
@@ -471,51 +479,44 @@ while True:
  #**********************************************************   
     
 i = 0
-while True:
+for z in range (vids):
     print('---------STARTED-------------')
     print('Global Server')
-    # print('Round: ',i)
+    # print('Round: ',i)#after first round of model exchange global models performance is calculated
+    print('Now Collecting Local Model performance Metrics....')
+    local_model_performace = list()
+    while qGSPerformance_Arousal.empty():
+        time.sleep(5)
+    while not qGSPerformance_Arousal.empty():
+        message = qGSPerformance_Arousal.get()
 
-    if (i>0):
-    	print('waiting for performance metrics')
-    	time.sleep(5)
-    #====================================================
-    # Global Model Performance Printing
-    #====================================================
+        if message is None:
+            continue
 
-    if (i>0): #after first round of model exchange global models performance is calculated
-        print('Now Collecting Local Model performance Metrics....')
-        local_model_performace = list()
-        while not qGSPerformance_Arousal.empty():
-            message = qGSPerformance_Arousal.get()
+        msg_model_performance = message.payload.decode('utf-8')
 
-            if message is None:
-                continue
+        decodedModelPerfromance = list(json.loads(msg_model_performance).values())
+        local_model_performace.append(decodedModelPerfromance)
 
-            msg_model_performance = message.payload.decode('utf-8')
+    global_model_performance = np.array(local_model_performace)
+    global_performance = np.mean(global_model_performance, axis=0)
 
-            decodedModelPerfromance = list(json.loads(msg_model_performance).values())
-            local_model_performace.append(decodedModelPerfromance)
+    len_local_perfm = len(local_model_performace)
+    print('Total Model Performance received:',len_local_perfm)
 
-        global_model_performance = np.array(local_model_performace)
-        global_performance = np.mean(global_model_performance, axis=0)
-
-        len_local_perfm = len(local_model_performace)
-        print('Total Model Performance received:',len_local_perfm)
-
-        if (len_local_perfm != 0):
-            global_model_result.append([global_performance[1]])
-            print('----------------------------------------------------')
-            print('F1 score for Low Arousal:',global_performance[5])
-            print('F1 score for High Arousal:',global_performance[6])
-            
-            print('----------------------------------------------------')
-        else:
-            break #No more data from local model
+    if (len_local_perfm != 0):
+        global_model_result.append([global_performance[1]])
+        print('----------------------------------------------------')
+        print('F1 score for Low Arousal:',global_performance[5])
+        print('F1 score for High Arousal:',global_performance[6])
+        
+        print('----------------------------------------------------')
+    else:
+        break #No more data from local model
 
     #**********************************************************
     print('waiting for local models')
-    time.sleep(10) #to receive model weights
+    #time.sleep(10) #to receive model weights
     #**********************************************************
 
     #=========================================================
@@ -523,7 +524,8 @@ while True:
     #=========================================================
     all_local_model_weights_arousal = list()
     model_available=0
-    
+    while qGSArousal.empty():
+            time.sleep(5)
     while not qGSArousal.empty():
             message = qGSArousal.get()
 
